@@ -2,6 +2,8 @@
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 //BME
 #define BME_SCK 19
@@ -14,14 +16,28 @@ Adafruit_BME280 bme; // I2C
 //MQ135
 #define PIN_MQ135 A7
 
+//OLED display
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+#define OLED_RESET    -1
+#define SCREEN_ADDRESS 0x3C
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
 // Variables
 float temperature;
 float pressure;
 float humidity;
-float CO;
-float CO2;
+float airQuality;
 
 int delayTimeMilliseconds = 5000;
+
+void setupOLED() {
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;); // Don't proceed, loop forever
+  }
+  display.clearDisplay();
+}
 
 void setupBME() {
   bme.begin();
@@ -36,22 +52,13 @@ void setupBME() {
 
 void setup() {
   Serial.begin(9600);
-  while (!Serial);   // time to get serial running
+  while (!Serial);
 
   //Built-in LED
   pinMode(LED_BUILTIN, OUTPUT);
 
+  setupOLED();
   setupBME();
-}
-
-
-void loop() {
-  digitalWrite(LED_BUILTIN, HIGH);
-  readBMEValues();
-  readMQ135Values();
-  printSerialValues();
-  digitalWrite(LED_BUILTIN, LOW);
-  delay(delayTimeMilliseconds);
 }
 
 void readBMEValues() {
@@ -60,8 +67,8 @@ void readBMEValues() {
   humidity = bme.readHumidity();
 }
 
-void readMQ135Values(){
-  CO2 = analogRead(PIN_MQ135);
+void readMQ135Values() {
+  airQuality = analogRead(PIN_MQ135);
 }
 
 void printSerialValues() {
@@ -82,18 +89,48 @@ void printSerialValues() {
   Serial.print(" %");
   Serial.println();
 
-  Serial.print("CO = ");
-  Serial.print(CO);
+  Serial.print("Air Quality = ");
+  Serial.print(airQuality);
   Serial.print(" ppm");
   Serial.println();
 
-
-  Serial.print("CO2 = ");
-  Serial.print(CO2);
-  Serial.print(" ppm");
   Serial.println();
+}
 
+void testscrolltext(void) {
+  display.clearDisplay();
 
-  Serial.println();
+  display.setTextSize(2); // Draw 2X-scale text
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(10, 0);
+  display.println(F("Hola!"));
+  display.display();      // Show initial text
+  delay(100);
 
+  // Scroll in various directions, pausing in-between:
+  display.startscrollright(0x00, 0x0F);
+  delay(2000);
+  display.stopscroll();
+  delay(1000);
+  display.startscrollleft(0x00, 0x0F);
+  delay(2000);
+  display.stopscroll();
+  delay(1000);
+  display.startscrolldiagright(0x00, 0x07);
+  delay(2000);
+  display.startscrolldiagleft(0x00, 0x07);
+  delay(2000);
+  display.stopscroll();
+  delay(1000);
+
+}
+
+void loop() {
+  digitalWrite(LED_BUILTIN, HIGH);
+  readBMEValues();
+  readMQ135Values();
+  printSerialValues();
+  digitalWrite(LED_BUILTIN, LOW);
+  testscrolltext();
+  delay(delayTimeMilliseconds);
 }
